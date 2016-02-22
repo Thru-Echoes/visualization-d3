@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tracing Voronoi</title>
+<style>
+
+body {
+	background-color: hsla(295, 50%, 79%, 0.3);
+	font: sans-serif;
+}
+
+P.blockText {
+	margin-left: auto;
+	margin-right: auto; 
+	width: 60em;
+}
+
+/*.circle {
+	fill: hsla(210, 50%, 50%, 0.6);
+}
+*/
+footer {
+	font: 10px sans-serif;
+	margin-left: auto;
+	margin-right: auto; 
+	width: 40em;
+}
+
+path { 
+	stroke: #000;
+	/*stroke-width: 0.8px;*/
+	/*fill: none;*/
+}
+
+</style>
+<body>
+	<linearGradient id = "svg_2">
+		<stop offset = "0" stop-color="lightred"/>
+		<stop offset = "1" stop-color="darkblue"/>
+	</linearGradient>
+	
+<script src="http://d3js.org/d3.v3.min.js"></script>
+
+<h1>D3 - Random Voronoi Visualization</h1>
+
+<script>
+
+/* d3 code */ 
+
+var margin = {top: 20, right: 30, bottom: 30, left: 40},
+	widthTrue = 1440,
+	heightTrue = 800,
+    width = widthTrue - margin.left - margin.right,
+    height = heightTrue - margin.top - margin.bottom
+	padding = 30;
+	
+var xRange = d3.range(widthTrue);
+var yRange = d3.range(heightTrue);
+	
+var x = d3.scale.linear()
+    .domain(xRange)
+    .range([0, width]);
+
+var y = d3.scale.linear()
+    .domain(yRange)
+    .range([height, 0]);
+	
+var color = d3.scale.linear() 
+	.domain([0, width])
+	.range(["hsl(0,50%, 50%)", "hsl(360,50%,50%)"]);
+
+
+// use vertices for data
+var vertices = d3.range(500).map(function(d) {
+  return [Math.random() * width, Math.random() * height
+			  , Math.random()];
+});
+
+/*var radius = [];
+var i;
+
+for (i = 0; i < 500; i++) {
+	radius.push(vertices[i][2]);
+};
+*/
+
+// svg canvas to build on 	
+var canvas = d3.select("body").append("svg")
+	.attr("width", width + margin.left + margin.right)
+	.attr("height", height + margin.top + margin.bottom);
+
+var voronoi = d3.geom.voronoi()
+				.clipExtent([[0,0], [width, height]]);
+
+var path = canvas.append("g").selectAll("path")
+				.data(voronoi(vertices))
+				.enter().append("path")
+				.attr("d", function(d) { return "M" 
+				+ d.join("L") + "Z"; })
+				//.style("fill", "pink")
+				.attr("stroke-width", 0.8)
+				.style("fill", "url(#gradient)")
+				.style("fill-opacity", 0.0);
+
+			path.on("mouseover", function(d, i) {
+				d3.select(this)
+				.attr("stroke-width", 5.0)
+				.style("fill-opacity", 0.8);
+			})
+
+			path.on("mouseout", function(d, i) {
+				d3.select(this)
+				.transition()
+					.duration(3000)
+					.attr("stroke-width", 0.8)
+					.style("fill-opacity", 0.0);
+			});	
+
+// construct circles 
+var circle = canvas.selectAll("circle")
+		//.data(randX, function(d) { return d; })
+		.data(vertices)
+		.enter()
+		.append("g")
+		.attr("class", "circle");
+
+// color gradient based on userSpaceOnUse
+var gradient = circle
+	.append("linearGradient")
+	.attr("x1", "0")
+	.attr("y1", "0")
+	.attr("x2", width)
+	.attr("y2", height)
+	.attr("id", "gradient")
+	.attr("gradientUnits", "userSpaceOnUse")
+
+	gradient.append("stop")
+		.attr("offset", "0")
+		//.attr("stop-color", "#hsl(0, 50%, 50%)")
+		.attr("stop-color", "red")
+		.attr("stop-opacity", 0.6)
+
+	gradient.append("stop")
+		.attr("offset", "1.0")
+		//.attr("stop-color", "#hsl(360, 50%, 50%)")
+		.attr("stop-color", "darkblue")
+		.attr("stop-opacity", 0.6);
+
+	circle.append("circle")
+		/*.attr("cx", function (d) { 
+			return (Math.random() * (widthTrue - padding * 1.2)) 
+			+ padding / 2; })
+		.attr("cy", function(d) { 
+			return (Math.random() * (heightTrue - padding * 1.2)) 
+			+ padding / 2; })*/
+		//.attr("cy", function (d, i) { return i; })
+		.attr("cx", function(d) { return d[0]; })
+		.attr("cy", function(d) { return d[1]; })
+		//.attr("r", 20)
+		//.attr("r", function (d) { return Math.random() * 30; })
+		.attr("r", function(d) { return d[2] * 30; })
+		.style("fill", "url(#gradient)")
+		.on("click", function (d) { 
+			d3.select(this)
+			.transition()
+			.duration(2000)
+			//.ease("elastic")
+			.attr("r", Math.random() * 50);
+		 });
+
+
+</script>
+
+<h2>Mouse through the field</h2>
+
+<p class="blockText">500 randomly generated circles with randomly generated sizes (radius). Each circle has a randomly generated X, Y, and radius, all independently created. Voronoi diagram built around the randomly generated circles. The Voronoi diagram is based solely on the X and Y coordinates of each circle, not their radius size. Thus, this example could be used to visualize various levels of competition based on overlap of resource needs of each individual. The size of each circle could be proportional to the resource needs of that individual. Voronoi polygons would then represent the territories of each individual if territoriality is high. This diagram gives each individual circle the largest territory size possible in relation to position and density of neighbors. High overlap between circles may be a sign of potential competition, resource depletition, communication, or a host of other biological and ecological situations (not to mention implications in other fields incluing, but not limited to, mathematics and statistics).</p>
+
+<footer>
+	<aside>Oct, 2014 - Oliver Muellerklein</aside>
+</footer>
+
+
+
+
+

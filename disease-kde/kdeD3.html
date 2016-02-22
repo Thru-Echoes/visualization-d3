@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Kernel Density Estimation</title>
+<style>
+
+body {
+  font: 10px sans-serif;
+}
+
+.sampleBar {
+	/*fill: #d63378;*/
+	fill: hsla(292, 100%, 79%, .6);
+	shape-rendering: crispEdges;
+}
+
+.allBar {
+	/*fill: #00FFFF;*/
+	fill: hsla(250, 0%, 0%, .2);
+	shape-rendering: crispEdges;
+}
+
+.sampleBar:hover {
+	fill: #612250;
+}
+
+.allBar:hover {
+	fill: hsla(250, 25%, 25%, .8);
+	shape-rendering: crispEdges;
+}
+
+.line {
+  fill: hsla(360, 100%, 20%, 0.58);
+  /*fill: none;*/
+  stroke: #000;
+  stroke-width: 2.5px;
+}
+
+.line:hover {
+    fill: hsla(360, 100%, 20%, 0.8);
+    stroke-width: 4px;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.y.axis path {
+  display: none;
+}
+
+/* d3-tip to add tooltip */
+.d3-tip {
+	line-height: 1;
+	font-weight: bold;
+	padding: 12px;
+	background: rgba(0, 0, 0, 0.8);
+	color: #fff;
+	border-radius: 2px;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+	box-sizing: border-box;
+	display: inline;
+	font-size: 10px;
+	width: 100%;
+	line-height: 1;
+	color: rgba(0, 0, 0, 0.8);
+	content: "\25BC";
+	position: absolute;
+	text-align: center;
+}
+
+/* Style northward tooltips differenetly */ 
+.d3-tip.n:after {
+	margin: -1px 0 0 0;
+	top: 100%;
+	left: 0;
+}
+
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+<script>
+
+var margin = {top: 20, right: 30, bottom: 30, left: 40},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+var minX = 0,
+	maxX = 100;
+
+var x = d3.scale.linear()
+    .domain([minX, maxX])
+    .range([0, width]);
+
+var y = d3.scale.linear()
+    .domain([0, .2])
+    .range([height, 0]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left")
+    .tickFormat(d3.format("%"));
+
+var line = d3.svg.line()
+    .x(function(d) { return x(d[0]); })
+    .y(function(d) { return y(d[1]); });
+
+/*var histogram = d3.layout.histogram()
+    .frequency(false)
+    .bins(x.ticks(10));
+*/
+	
+var canvas = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+canvas.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(xAxis)
+  .append("text")
+    .attr("class", "label")
+    .attr("x", width)
+    .attr("y", -6)
+    .style("text-anchor", "end")
+    .text("Age of infected people (year)");
+
+canvas.append("g")
+    .attr("class", "y axis")
+    .call(yAxis);
+
+d3.json("allAge.json", function(error, data) {
+	
+	// zip together and format 
+	data = d3.zip(data.age, data.gender).map(function (d) { 
+		age = +d[0];
+		gender = +d[1];
+		
+		// return object for each age + gender pair
+		return {age: age, gender: gender};
+	});
+	
+	//x.domain(d3.extent(data, function(d) { return d.age; }));
+	//y.domain(d3.extent(data, function(d) { return d.gender; }));
+	
+	var allAge = d3.layout.histogram()
+	    .frequency(false)
+	    .bins(x.ticks(20))
+		.value( function (d) { return d.age; })
+		(data);
+
+	// data = object containing age and gender arrays		
+	var allTip = d3.tip()
+		.attr('class', 'd3-tip')
+		.offset([-10, 0])
+		.html(function(d, i) { 
+			return "<span style='color:#FF99FF'>" 
+			+ d3.round((d.y * 100)) + "% infected: " + "</span>"
+			+ "<span style='color:lightgray'>"
+			+ d3.round(genderCount(d, 0)) + "% male, " + "</span>"
+			+ "<span style='color:eggwhite'>"
+			+ d3.round(genderCount(d, 1)) + "% female" + "</span>"
+			+ makePie(genderCount(d, 0), genderCount(d, 1)); });
+	
+	canvas.call(allTip);
+
+	var allBars = canvas.selectAll(".allBar")
+		.data(allAge)
+		.enter().insert("rect", ".axis")
+			.attr("class", "allBar")
+			.attr("x", function(d) { return x(d.x) - 15; })
+			.attr("y", function(d) { return y(d.y); })
+			.attr("width", function(d) { return x(d.dx) - 15; })
+			.attr("height", function(d) { return height - y(d.y); })
+			.on('mouseover', allTip.show)
+			.on('mouseout', allTip.hide);
+			
+						
+
+})
+
+d3.json("sample500_2.json", function(error, data) {
+
+	// zip together and format 
+	sampleData = d3.zip(data.age, data.gender).map(function (d) { 
+		age = +d[0];
+		gender = +d[1];
+		
+		// return object for each age + gender pair
+		return {age: age, gender: gender};
+	});
+
+	var allAge = d3.layout.histogram()
+	    .frequency(false)
+	    .bins(x.ticks(30))
+		.value( function (d) { return d.age; })
+		(sampleData);
+
+	// data = object containing age and gender arrays		
+	var sampleTip = d3.tip()
+		.attr('class', 'd3-tip')
+		.offset([-10, 0])
+		.html(function(d, i) { 
+			return "<span style='color:#FF99FF'>" 
+			+ d3.round((d.y * 100)) + "% infected: " + "</span>"
+			+ "<span style='color:lightgray'>"
+			+ d3.round(genderCount(d, 0)) + "% male, " + "</span>"
+			+ "<span style='color:eggwhite'>"
+			+ d3.round(genderCount(d, 1)) + "% female" + "</span>"; });
+			
+	var kde = kernelDensityEstimator(epanechnikovKernel(6), x.ticks(100));
+	
+	canvas.call(sampleTip);
+	
+	var sampleBars = canvas.selectAll(".sampleBar")
+	  .data(allAge)
+	.enter().insert("rect", ".axis")
+		.attr("class", "sampleBar")
+		.attr("x", function(d) { return x(d.x) - 5; })
+		.attr("y", function(d) { return y(d.y); })
+		.attr("width", function(d) { return x(d.dx) - 15; })
+		.attr("height", 0)
+		.attr('pointer-events', 'none')
+			.on('mouseover', sampleTip.show)
+			.on('mouseout', sampleTip.hide);
+			/*.on("mouseover", function(d, i) {		
+				renderArc
+					.attr("fill-opacity", 0.6); })
+			.on("mouseout", function(d, i) {
+				renderArc
+					.attr("fill-opacity", 0.0); })*/
+		
+	sampleBars
+		.transition()
+		.duration(2500)
+		.delay(500)
+		.attr("height", function(d) { return height - y(d.y); })
+		.transition().attr('pointer-events', '');
+
+	var tipKDE = d3.tip()
+		.attr('class', 'd3-tip')
+		.offset([-20, 110])
+		.html("Kernel Density Estimation");
+		
+	canvas.call(tipKDE);
+
+	var kdeLine = canvas.append("path")
+		.datum(kde(data.age))
+		.attr("class", "line")
+		.attr("d", line)
+		.on('mouseover', tipKDE.show)
+		.on('mouseout', tipKDE.hide);
+		
+	kdeLine.append("text")
+		.attr("text-anchor", "middle")
+		.text("KDE");
+	 
+	var totalLength = kdeLine.node().getTotalLength();
+	
+	kdeLine
+		.style("fill-opacity", 0)
+		.attr("stroke-dasharray", totalLength + " " + totalLength)
+		.attr("stroke-dashoffset", totalLength)
+		.transition()
+			.duration(2500)
+			.delay(1500)
+			.ease("linear")
+			.attr("stroke-dashoffset", 0)
+			.style("fill-opacity", 0.8);
+});
+
+// find % male / female for each bin
+function genderCount(d, gend) { 
+
+	var z = 0,
+		female = 0,
+		male = 0,
+		freqMale = 0,
+		freqFemale = 0;
+	
+	while (d[z]) {
+		if (d[z].gender == 1) {
+			male++;
+		} else { 
+			female++;
+		};
+		z++;
+	};
+	
+	if (gend == 0) {
+		freqMale = 100 * (male / (male + female));
+		return freqMale;
+	} else {
+		freqFemale = 100 * (female / (male + female)); 
+		return freqFemale;
+	};
+	//return [male, female];
+}
+
+function makePie(freqMale, freqFemale) { 
+	
+	var data = [{"label":"Male", "value":freqMale},
+				{"label":"Female", "value":freqFemale}];
+				
+	var colors = ["red", "blue"];
+	
+	var colorscale = d3.scale.linear().domain([0, data.length])
+						.range(colors);
+						
+	var arc = d3.svg.arc()
+			.innerRadius(0)
+			.outerRadius(50);
+	
+	var pie = d3.layout.pie()
+			.value(function(d) { return d.value; });
+			
+	var renderArc = canvas.append("g")
+			.attr("transform", "translate(75, 75)")
+			.selectAll(".arc")
+			.data(pie(data))
+			.enter()
+			.append("g")
+			.attr("class", "arc");
+			
+		renderArc.append("path")
+			.attr("d", arc)
+			.attr("fill", function(d, i) { 
+				return colorscale(i); })
+			.attr("fill-opacity", 0.0)
+			.transition()
+			.duration(2000)
+			.attr("fill-opacity", 0.6)
+			.transition()
+			.duration(3000)
+			.attr("fill-opacity", 0.0);
+			
+		/*renderArc
+			.on("mouseover", function(d, i) {
+				d3.select(this)
+				.attr("fill-opacity", 0.6); })
+			.on("mouseout", function(d, i) {
+				d3.select(this)
+				.attr("fill-opacity", 0.0); })
+		*/	
+	return "";
+};
+
+function kernelDensityEstimator(kernel, x) {
+  return function(sample) {
+    return x.map(function(x) {
+      return [x, d3.mean(sample, function(v) { return kernel(x - v); })];
+    });
+  };
+}
+
+function epanechnikovKernel(scale) {
+  return function(u) {
+    return Math.abs(u /= scale) <= 1 ? .75 * (1 - u * u) / scale : 0;
+  };
+}
+
+</script>
